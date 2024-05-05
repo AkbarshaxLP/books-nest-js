@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Books</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body>
+  <div id="app">
+    <nav class="bg-gray-800 p-4">
+      <div class="container mx-auto flex justify-between items-center">
+        <div>
+          <a href="#" class="text-white font-bold text-xl">Logo</a>
+        </div>
+        <div>
+          <ul class="flex space-x-4">
+            <li><a href="#" class="text-white">Home</a></li>
+            <li><a href="#" class="text-white">About</a></li>
+            <li><a href="#" class="text-white">Services</a></li>
+            <li><a href="#" class="text-white">Contact</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+  
+    <div class="container mx-auto py-8">
+      <div class="pb-4">
+        <el-button @click="visible = true">Create</el-button>
+      </div>
+      
+      <div class="books-list">
+        <el-card :key="item.id" v-for="item in data.results" class="box-card">
+          <div slot="header" class="clearfix">
+            <div class="flex">
+              <span>{{ item.name }}</span>
+              <div class="ml-auto">
+                <el-button type="warning" icon="el-icon-star-off" size="small" circle></el-button>
+                <el-button @click="form = item;visible = true" type="primary" icon="el-icon-edit" size="small" circle></el-button>
+                <el-popconfirm
+                  confirm-button-text='OK'
+                  cancel-button-text='No, Thanks'
+                  icon="el-icon-info"
+                  icon-color="red"
+                  title="Are you sure to delete this?"
+                  @confirm="deleteItem(item.id)"
+                >
+                  <el-button slot="reference" type="danger" icon="el-icon-delete" size="small" circle></el-button>
+                </el-popconfirm>
+              </div>
+            </div>
+          </div>
+          <div class="text item">
+            {{ item.description }}
+          </div>
+        </el-card>
+      </div>
+      <el-row class="pt-4">
+        <el-pagination
+          @current-change="getData"
+          :current-page.sync="filter.page"
+          background
+          layout="prev, pager, next"
+          :total="data.count"
+        >
+        </el-pagination>
+      </el-row>
+      <el-dialog :visible.sync="visible" width="600px" title="Hello world">
+        <el-form :label-position="labelPosition" ref="ruleForm" label-width="100px" :model="form" :rules="rules">
+          <el-form-item v-if="form.id" label="id">
+            <el-input disabled v-model="form.id"></el-input>
+          </el-form-item>
+          <el-form-item label="Name" prop="name">
+            <el-input v-model="form.name"></el-input>
+          </el-form-item>
+          <el-form-item label="Description">
+            <el-input type="textarea" v-model="form.description"></el-input>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="submit()">Submit</el-button>
+            <el-button @click="closeDialog()">Cancel</el-button>
+          </el-form-item>
+        </el-form>
+      </el-dialog>
+    </div>
+  </div>
+  <!-- Vue.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  
+
+  <script>
+    axios.defaults.baseURL = 'http://localhost:3000/api/v1';
+
+    var app = new Vue({
+      el: '#app',
+      data: {
+        loading: false,
+        popover: false,
+        visible: false,
+        labelPosition: 'left',
+        filter: {
+          page:1
+        },
+        form: {
+          id: '',
+          name: '',
+          description: ''
+        },
+        data: {
+          results: []
+        },
+        rules: {
+          name: [
+            { required: true, message: 'Please input Activity name', trigger: 'blur' },
+            { min: 3, max: 50, message: 'Length should be 3 to 50', trigger: 'blur' }
+          ],
+        },
+      },
+      created() {
+        this.getData();
+      },
+      methods: {
+        closeDialog () {
+          this.visible = false;
+          this.form.name = '';
+          this.form.region = '';
+          this.form.type = '';
+        },
+        deleteItem (id) {
+          this.loading = true;
+          axios.delete(`/book/${id}`)
+            .then((response) => {
+              this.filter.page = 1;
+              this.getData();
+            })
+            .catch((error) => {
+              console.error(error);
+            })
+            .finally(() => {
+              this.loading = false;
+            })
+        },
+        submit () {
+          this.$refs['ruleForm'].validate((valid) => {
+            if (valid) {
+              this.loading = true;
+              const id = this.form.id;
+              const url = id ? `/book/${id}` : '/book';
+              const method = id ? 'PATCH' : 'POST';
+              const data = {
+                name: this.form.name,
+                description: this.form.description,
+              };
+
+              axios({
+                method,
+                url,
+                data,
+              })
+              .then((response) => {
+                setTimeout(() => {
+                  this.form.id = '';
+                  this.form.name = '';
+                  this.form.description = '';
+                }, 250)
+                
+              })
+              .catch((error) => {
+                console.error(error);
+              })
+              .finally(() => {
+                this.loading = false;
+                this.visible = false;
+                this.getData();
+              })
+            } else {
+              console.log('error submit!!');
+              return false;
+            }
+          });
+        },
+        getData () {
+          this.loading = true;
+          axios.get('http://localhost:3000/api/v1/book', {
+            params: this.filter
+          })
+            .then((response) => {
+              this.data = response.data;
+            })
+            .catch((error) => {
+              console.error(error);
+            })
+            .finally(() => {
+              this.loading = false;
+            })
+        }
+      },
+    });
+  </script>
+
+<style>
+  .books-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .text {
+    font-size: 14px;
+  }
+
+  .item {
+    margin-bottom: 18px;
+  }
+
+  .clearfix:before,
+  .clearfix:after {
+    display: table;
+    content: "";
+  }
+  .clearfix:after {
+    clear: both
+  }
+
+  .box-card {
+    width: 480px;
+  }
+  .el-button+.el-button, .el-checkbox.is-bordered+.el-checkbox.is-bordered {
+    margin-left: 0;
+  }
+</style>
+</body>
+
+</html>
